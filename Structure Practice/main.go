@@ -6,30 +6,78 @@ import (
 	"fmt"
 	"os"
 
+	// Custom packages for Note and Todo functionality
 	"example.com/strucPractice/note"
+	"example.com/strucPractice/todo"
 )
 
-
+// main is the entry point of the program.
+// It collects user input for a Note (title + content) and a Todo (text),
+// then creates, displays, and saves both to their respective files.
 func main() {
+	// Prompt the user to enter the note's title
 	title, error := getUserInput("Note Title")
 	if error != nil {
 		println(error.Error())
 		return
 	}
+
+	// Prompt the user to enter the note's content
 	content, error := getUserInput("Note Content")
 	if error != nil {
 		println(error.Error())
 		return
 	}
+
+	// Prompt the user to enter the todo text
+	text, error := getUserInput("Enter the text here")
+	if error != nil {
+		println(error.Error())
+		return
+	}
+
+	// Create a new Todo using the text entered by the user.
+	// todo.New returns a Todo struct and an error if the text is empty.
+	userTodo, userTodoError := todo.New(text)
+	if userTodoError != nil {
+		println(userTodoError.Error())
+		return
+	}
+
+	// Print the Todo details to the terminal
+	userTodo.DisplayNote()
+
+	// Save the Todo to "todoData.txt"
+	userTodo.Save()
+
+	// Create a new Note using the title and content entered by the user.
+	// note.New returns a Note struct and an error if either field is empty.
 	userNote, userError := note.New(title, content)
+
+	// Print the Note details to the terminal
 	userNote.DisplayNote()
+
+	// Save the Note to "noteData.txt"
 	userNote.Save()
+
+	// Check for error AFTER DisplayNote/Save — note that if userError is not nil,
+	// userNote will be an empty Note{} so the display and save above would have run on empty data.
+	// Ideally, this check should happen right after note.New (before DisplayNote/Save).
 	if userError != nil {
 		println("Error in creating the Note")
 		return
 	}
 }
 
+// getUserInput prints a prompt to the terminal and reads a full line of text from the user.
+// It returns the input string and any error encountered during reading.
+//
+// Parameters:
+//   - prompt: the message shown to the user (e.g., "Note Title")
+//
+// Returns:
+//   - string: the text the user typed
+//   - error:  non-nil if input was empty or a read error occurred
 func getUserInput(prompt string) (string, error) {
 
 	// Variable that will store the final user input
@@ -62,7 +110,7 @@ func getUserInput(prompt string) (string, error) {
 	// Input: Rahul Bisht
 	// fmt.Scanln => only "Rahul"
 	//
-	// bufio.Reader can read the entire line:
+	// bufio.Reader can read the entire line including spaces:
 	// "Rahul Bisht"
 
 	reader := bufio.NewReader(os.Stdin)
@@ -70,12 +118,13 @@ func getUserInput(prompt string) (string, error) {
 	// ReadString('\n')
 	// ----------------
 	// Reads user input until it finds a newline character '\n'
+	// (i.e., until the user presses ENTER).
 	//
 	// Example:
-	// User types:
-	// Hello World + ENTER
+	// User types: Hello World + ENTER
+	// userData = "Hello World\n"
 	//
-	// It reads everything until ENTER is pressed.
+	// Note: the '\n' character is included in the returned string.
 
 	userData, err := reader.ReadString('\n')
 
@@ -90,7 +139,6 @@ func getUserInput(prompt string) (string, error) {
 	}
 
 	// If everything is correct,
-	// return the entered user data
-	// and nil error.
+	// return the entered user data and nil error.
 	return userData, nil
 }
