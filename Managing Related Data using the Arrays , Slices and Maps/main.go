@@ -9,7 +9,7 @@ func main() {
 	}
 	//prints the 2 element of the array
 	fmt.Printf("This is the Second Element of the Array : %v \n", prices[1])
-	
+
 	// Append new value
 	prices = append(prices, 120)
 
@@ -25,4 +25,9 @@ func main() {
 
 	// Capacity shows the number of element in original array
 	fmt.Print(cap(prices))
+
+	// to append slice inside a array 
+	discountedArray := []float32{12,23,34,45,56}
+	prices = append(prices, discountedArray... )
 }
+
