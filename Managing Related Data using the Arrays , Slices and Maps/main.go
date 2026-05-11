@@ -9,6 +9,7 @@ func main() {
 	}
 	//prints the 2 element of the array
 	fmt.Printf("This is the Second Element of the Array : %v \n", prices[1])
+	
 	// Append new value
 	prices = append(prices, 120)
 
@@ -16,9 +17,12 @@ func main() {
 	fmt.Println(prices)
 
 	// prints the len of the array
-	fmt.Printf("This is the length of Arrau %v", len(prices))
+	fmt.Printf("This is the length of Array %v \n", len(prices))
 
 	//Slice prints a particular segment of the array based
 	// on the provied initial and end position
 	fmt.Println(prices[:])
+
+	// Capacity shows the number of element in original array
+	fmt.Print(cap(prices))
 }
