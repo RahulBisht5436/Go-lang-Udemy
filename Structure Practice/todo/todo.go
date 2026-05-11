@@ -10,7 +10,7 @@ type Todo struct {
 	text string `json:"title_on"`
 }
 
-func (t Todo) DisplayNote() {
+func (t Todo) Display() {
 	fmt.Println("This is the title : ")
 	fmt.Println(t.text)
 }

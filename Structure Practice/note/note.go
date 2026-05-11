@@ -13,7 +13,7 @@ type Note struct {
 	createdAt time.Time
 }
 
-func (n Note) DisplayNote() {
+func (n Note) Display() {
 	fmt.Println("This is the title : ")
 	fmt.Println(n.title)
 	fmt.Println("This is the content : ")

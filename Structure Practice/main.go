@@ -11,9 +11,35 @@ import (
 	"example.com/strucPractice/todo"
 )
 
+type saver interface {
+	Save() error
+}
+type Displayer interface {
+	Display()
+	saver
+}
+
+func displayProperties(data Displayer) {
+	err := saveData(data)
+	if err != nil {
+		return
+	}
+	data.Display()
+}
+func saveData(data saver) error {
+	erro := data.Save()
+	if erro != nil {
+		println("Failed to save the data")
+		return erro
+	}
+	println("data is saved SuccessFully")
+	return nil
+}
+
 // main is the entry point of the program.
 // It collects user input for a Note (title + content) and a Todo (text),
 // then creates, displays, and saves both to their respective files.
+
 func main() {
 	// Prompt the user to enter the note's title
 	title, error := getUserInput("Note Title")
@@ -45,24 +71,26 @@ func main() {
 	}
 
 	// Print the Todo details to the terminal
-	userTodo.DisplayNote()
-
+	displayProperties(userTodo)
 	// Save the Todo to "todoData.txt"
-	userTodo.Save()
+	saveData(userTodo)
+	// userTodo.Save()
 
 	// Create a new Note using the title and content entered by the user.
 	// note.New returns a Note struct and an error if either field is empty.
 	userNote, userError := note.New(title, content)
 
 	// Print the Note details to the terminal
-	userNote.DisplayNote()
+	// userNote.Display()
+	displayProperties((userNote))
 
 	// Save the Note to "noteData.txt"
-	userNote.Save()
+	saveData(userNote)
+	// userNote.Save()
 
-	// Check for error AFTER DisplayNote/Save — note that if userError is not nil,
+	// Check for error AFTER Display/Save — note that if userError is not nil,
 	// userNote will be an empty Note{} so the display and save above would have run on empty data.
-	// Ideally, this check should happen right after note.New (before DisplayNote/Save).
+	// Ideally, this check should happen right after note.New (before Display/Save).
 	if userError != nil {
 		println("Error in creating the Note")
 		return
@@ -140,5 +168,13 @@ func getUserInput(prompt string) (string, error) {
 
 	// If everything is correct,
 	// return the entered user data and nil error.
+	
 	return userData, nil
+}
+func callingFunction(){
+	var results = printSomethings(1, 2)
+	fmt.Println(results)
+}
+func printSomethings[T int|float32 | float64](val1, val2 T) T {
+	return val1 + val2
 }
