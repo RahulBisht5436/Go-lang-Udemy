@@ -17,4 +17,8 @@ func main() {
 
 	// prints the len of the array
 	fmt.Printf("This is the length of Arrau %v", len(prices))
+
+	//Slice prints a particular segment of the array based
+	// on the provied initial and end position
+	fmt.Println(prices[:])
 }
