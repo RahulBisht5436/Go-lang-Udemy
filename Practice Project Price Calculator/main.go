@@ -2,21 +2,16 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"example.com/price_calculator/prices"
 	"example.com/price_calculator/utility"
 )
 
 func main() {
-	priceInfoRawContent, priceInfoRawErr := os.ReadFile("prices.txt")
-	if priceInfoRawErr != nil {
-		fmt.Println("Error occured in Reading File")
-		return
-	}
-	pricesInfo, priceInfoErr := utility.FileBytesToSlice(priceInfoRawContent)
+	pricesInfo, priceInfoErr := utility.ReadFiles("prices.txt")
 	if priceInfoErr != nil {
 		fmt.Println(priceInfoErr.Error())
+		return
 	}
 
 	//  pricesInfo:= []float64{10, 20, 30}
