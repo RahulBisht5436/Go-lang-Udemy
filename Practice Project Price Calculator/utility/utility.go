@@ -1,6 +1,7 @@
 package utility
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -79,4 +80,17 @@ func ReadFiles(fileName string) ([]float64, error) {
 
 	return pricesInfo, nil
 
+}
+
+func WriteJSON(path string, data any) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("unable to create file %q: %w", path, err)
+	}
+	defer file.Close()
+
+	if err := json.NewEncoder(file).Encode(data); err != nil {
+		return fmt.Errorf("failed to encode data to %q: %w", path, err)
+	}
+	return nil
 }
