@@ -163,3 +163,36 @@ func DeleteEventById(id int) error {
 	fmt.Println(result)
 	return nil
 }
+
+func UpdateEvent(id int, event models.Event) error {
+	query := `
+	UPDATE events
+	SET name = ?, description = ?, location = ?, dateTime = ?
+	WHERE id = ?
+	`
+	stmt, err := DB.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("prepare update: %w", err)
+	}
+	defer stmt.Close()
+
+	result, err := stmt.Exec(
+		event.Name,
+		event.Description,
+		event.Location,
+		event.DateTime.Format(time.RFC3339),
+		id,
+	)
+	if err != nil {
+		return fmt.Errorf("exec update: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("%w (id=%d)", ErrEventNotFound, id)
+	}
+	return nil
+}

@@ -101,7 +101,7 @@ func getEvents(context *gin.Context) {
 }
 
 func deleteEventByIdFunction(context *gin.Context) {
-	fmt.Println("Right Function Called")
+
 	id, err := strconv.Atoi(context.Param("id"))
 	if err != nil || id <= 0 {
 		context.JSON(http.StatusBadRequest, gin.H{
@@ -121,5 +121,35 @@ func deleteEventByIdFunction(context *gin.Context) {
 
 	context.JSON(http.StatusOK, gin.H{
 		"message": "Event deleted Successfully",
+	})
+}
+
+func updateEvent(context *gin.Context) {
+	id, err := strconv.Atoi(context.Param("id"))
+	if err != nil || id <= 0 {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid ID entered",
+		})
+		return
+	}
+	var event models.Event
+	errEvent := context.BindJSON(&event)
+	if errEvent != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Unable to Update Information",
+		})
+		return
+	}
+
+	errUpdate := db.UpdateEvent(id, event)
+	if errUpdate != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Data was not Updated",
+		})
+		return
+	}
+	context.JSON(http.StatusOK, gin.H{
+		"message": "Event Updated Successfully",
+		"Event":   event,
 	})
 }
