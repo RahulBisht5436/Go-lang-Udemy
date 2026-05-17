@@ -1,15 +1,11 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
 	"os"
-	"strconv"
-	"time"
 
 	"example.com/rest-api/db"
-	"example.com/rest-api/models"
+	"example.com/rest-api/routes"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -28,98 +24,9 @@ func main() {
 	// Behind the screen it setup a http server
 	Server := gin.Default()
 	db.InitDB()
+	//Server is Passed to the manage Routes
+	routes.ManageRoutes(Server)
 
-	Server.GET("/events", getEvents)
-	Server.POST("/events", createEvent)
-	Server.GET("/event/:id", getEventById)
 	fmt.Printf("Server Started on the PORT : %v \n", port)
 	Server.Run(":" + port)
-}
-
-func createEvent(context *gin.Context) {
-	var event models.Event
-
-	//here we bind the entered Body into the event variable
-	err := context.BindJSON(&event)
-
-	//if any error in the binding , Handle the error
-	if err != nil {
-		fmt.Println("error in parsing Data")
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid param passed",
-			"errror":  err.Error(),
-		})
-		return
-	}
-	// Creating a validation check for the entries
-	if event.Name == "" {
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "Name is required Field",
-		})
-		return
-	} else if event.ID == 0 {
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "ID is required Field",
-		})
-		return
-	} else if event.UserId == 0 {
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "UserId is required Field",
-		})
-		return
-	}
-	err = db.InsertData(event.Name, event.Description, event.Location, event.DateTime.Format(time.RFC3339), event.UserId)
-	if err != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Unable to Save Data",
-			"error":   err.Error(),
-		})
-		return
-	}
-
-	context.JSON(http.StatusCreated, gin.H{
-		"Message": "Data Saved successFully",
-		"event":   event,
-	})
-}
-func getEventById(context *gin.Context) {
-	id, err := strconv.Atoi(context.Param("id"))
-	if err != nil || id <= 0 {
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid ID entered",
-		})
-		return
-	}
-
-	result, err := db.GetIdDbEvents(id)
-	if err != nil {
-		if errors.Is(err, db.ErrEventNotFound) {
-			context.JSON(http.StatusNotFound, gin.H{
-				"message": "Event not found",
-			})
-			return
-		}
-		context.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Query Operation Failed",
-			"error":   err.Error(),
-		})
-		return
-	}
-	context.JSON(http.StatusOK, gin.H{
-		"message": "Data Fetch SuccessFul",
-		"result":  result,
-	})
-}
-func getEvents(context *gin.Context) {
-	allEvents, err := db.GetAllDbEvents()
-	if err != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Unable to fetch events",
-			"error":   err.Error(),
-		})
-		return
-	}
-	context.JSON(http.StatusOK, gin.H{
-		"events": allEvents,
-	})
 }
