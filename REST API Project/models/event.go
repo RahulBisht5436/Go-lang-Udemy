@@ -14,7 +14,6 @@ type Event struct {
 var events = []Event{}
 
 func (E Event) Save() {
-	// add to the Database later
 	events = append(events, E)
 }
 

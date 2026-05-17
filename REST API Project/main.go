@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
 	"example.com/rest-api/db"
 	"example.com/rest-api/models"
@@ -28,6 +31,7 @@ func main() {
 
 	Server.GET("/events", getEvents)
 	Server.POST("/events", createEvent)
+	Server.GET("/event/:id", getEventById)
 	fmt.Printf("Server Started on the PORT : %v \n", port)
 	Server.Run(":" + port)
 }
@@ -64,17 +68,57 @@ func createEvent(context *gin.Context) {
 		})
 		return
 	}
+	err = db.InsertData(event.Name, event.Description, event.Location, event.DateTime.Format(time.RFC3339), event.UserId)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Unable to Save Data",
+			"error":   err.Error(),
+		})
+		return
+	}
 
-	event.Save()
-	//Here we are sending the response
 	context.JSON(http.StatusCreated, gin.H{
 		"Message": "Data Saved successFully",
 		"event":   event,
 	})
+}
+func getEventById(context *gin.Context) {
+	id, err := strconv.Atoi(context.Param("id"))
+	if err != nil || id <= 0 {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid ID entered",
+		})
+		return
+	}
 
+	result, err := db.GetIdDbEvents(id)
+	if err != nil {
+		if errors.Is(err, db.ErrEventNotFound) {
+			context.JSON(http.StatusNotFound, gin.H{
+				"message": "Event not found",
+			})
+			return
+		}
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Query Operation Failed",
+			"error":   err.Error(),
+		})
+		return
+	}
+	context.JSON(http.StatusOK, gin.H{
+		"message": "Data Fetch SuccessFul",
+		"result":  result,
+	})
 }
 func getEvents(context *gin.Context) {
-	allEvents := models.GetAllEvent()
+	allEvents, err := db.GetAllDbEvents()
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Unable to fetch events",
+			"error":   err.Error(),
+		})
+		return
+	}
 	context.JSON(http.StatusOK, gin.H{
 		"events": allEvents,
 	})
