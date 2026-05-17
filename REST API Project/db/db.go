@@ -102,6 +102,18 @@ func InsertData(name string, description string, location string, dateTime strin
 	return nil
 }
 func createTables() {
+	createUsersTable := `
+	CREATE TABLE IF NOT EXISTS users(
+	Id INTEGER PRIMARY KEY AUTOINCREMENT,
+	email TEXT NOT NULL UNIQUE,
+	password TEXT NOT NULL
+	) 
+	`
+	_, errUserTable := DB.Exec(createUsersTable)
+	if errUserTable != nil {
+		panic("Not able to create the User Table")
+	}
+
 	createEventsTable := `
 	CREATE TABLE IF NOT EXISTS events(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,8 +121,8 @@ func createTables() {
 	description TEXT NOT NULL,
 	location TEXT NOT NULL,
 	dateTime TEXT NOT NULL,
-	user_id INTEGER
-
+	user_id INTEGER,
+	FOREIGN KEY(user_id) REFERENCES users(Id)
 	) 
 	`
 
