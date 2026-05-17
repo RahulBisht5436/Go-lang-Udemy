@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"example.com/rest-api/db"
 	"example.com/rest-api/models"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -23,6 +24,7 @@ func main() {
 
 	// Behind the screen it setup a http server
 	Server := gin.Default()
+	db.InitDB()
 
 	Server.GET("/events", getEvents)
 	Server.POST("/events", createEvent)
@@ -65,13 +67,9 @@ func createEvent(context *gin.Context) {
 
 	event.Save()
 	//Here we are sending the response
-	context.JSON(http.StatusOK, gin.H{
-		"Message":     "Data Saved successFully",
-		"Name":        event.Name,
-		"Description": event.Description,
-		"Location":    event.Location,
-		"ID":          event.ID,
-		"UserId":      event.UserId,
+	context.JSON(http.StatusCreated, gin.H{
+		"Message": "Data Saved successFully",
+		"event":   event,
 	})
 
 }
