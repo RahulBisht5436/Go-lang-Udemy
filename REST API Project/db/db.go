@@ -153,3 +153,13 @@ func GetIdDbEvents(id int) (models.Event, error) {
 	}
 	return event, nil
 }
+
+func DeleteEventById(id int) error {
+	query := `DELETE FROM events WHERE id = ?`
+	result, err := DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	fmt.Println(result)
+	return nil
+}

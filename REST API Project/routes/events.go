@@ -99,3 +99,27 @@ func getEvents(context *gin.Context) {
 		"events": allEvents,
 	})
 }
+
+func deleteEventByIdFunction(context *gin.Context) {
+	fmt.Println("Right Function Called")
+	id, err := strconv.Atoi(context.Param("id"))
+	if err != nil || id <= 0 {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid ID entered",
+		})
+		return
+	}
+
+	errDatabase := db.DeleteEventById(id)
+	if errDatabase != nil {
+
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Not Able to delete the Entry",
+		})
+
+	}
+
+	context.JSON(http.StatusOK, gin.H{
+		"message": "Event deleted Successfully",
+	})
+}
