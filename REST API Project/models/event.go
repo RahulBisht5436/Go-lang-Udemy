@@ -3,20 +3,10 @@ package models
 import "time"
 
 type Event struct {
-	ID          int    `binding:"required`
-	Name        string `binding:"required`
-	Description string
-	Location    string
-	DateTime    time.Time
-	UserId      int `binding:"required`
-}
-
-var events = []Event{}
-
-func (E Event) Save() {
-	events = append(events, E)
-}
-
-func GetAllEvent() []Event {
-	return events
+	ID          int       `json:"id"`
+	Name        string    `json:"name"        binding:"required"`
+	Description string    `json:"description"`
+	Location    string    `json:"location"`
+	DateTime    time.Time `json:"dateTime"`
+	UserId      int       `json:"userId"      binding:"required"`
 }
