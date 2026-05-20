@@ -2,10 +2,8 @@ package routes
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"example.com/rest-api/db"
 	"example.com/rest-api/models"
@@ -13,57 +11,33 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// authedUser is a tiny helper that reads the values stashed on the gin
+// context by utils.AuthMiddleware. Centralising the lookup means handlers
+// don't have to know the magic string keys.
+func authedUser(c *gin.Context) (email string, userId int64) {
+	email = c.GetString(utils.ContextEmailKey)
+	userId = c.GetInt64(utils.ContextUserIDKey)
+	return
+}
+
 func createEvent(context *gin.Context) {
 	var event models.Event
-
-	//here we bind the entered Body into the event variable
-	err := context.BindJSON(&event)
-	rawtoken := context.GetHeader("Authorization")
-	token, tokenErr := utils.ExtractToken(rawtoken)
-	if tokenErr != nil {
+	if err := context.ShouldBindJSON(&event); err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid param passed",
-			"error":   tokenErr.Error(),
-		})
-		return
-	}
-	email, userId, errJWT := utils.ExtractUserInfo(token)
-	if errJWT != nil {
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "Authentication Error",
-			"error":   errJWT.Error(),
+			"message": "Invalid event payload",
+			"error":   err.Error(),
 		})
 		return
 	}
 
-	//if any error in the binding , Handle the error
-	if err != nil {
-		fmt.Println("error in parsing Data")
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid param passed",
-			"errror":  err.Error(),
-		})
-		return
-	}
-	// Creating a validation check for the entries
-	if event.Name == "" {
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "Name is required Field",
-		})
-		return
-	} else if event.ID == 0 {
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "ID is required Field",
-		})
-		return
-	} else if event.UserId == 0 {
-		context.JSON(http.StatusBadRequest, gin.H{
-			"message": "UserId is required Field",
-		})
-		return
-	}
-	err = db.InsertData(event.Name, event.Description, event.Location, event.DateTime.Format(time.RFC3339), event.UserId)
-	if err != nil {
+	// Owner fields come from the JWT, NEVER from the request body —
+	// otherwise any logged-in user could create events on someone else's
+	// behalf just by lying about userId in the JSON.
+	email, userId := authedUser(context)
+	event.UserId = userId
+	event.UserEmail = email
+
+	if err := db.InsertData(&event); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Unable to Save Data",
 			"error":   err.Error(),
@@ -72,12 +46,11 @@ func createEvent(context *gin.Context) {
 	}
 
 	context.JSON(http.StatusCreated, gin.H{
-		"Message": "Data Saved successFully",
+		"message": "Data Saved successFully",
 		"event":   event,
-		"email":   email,
-		"userId":  userId,
 	})
 }
+
 func getEventById(context *gin.Context) {
 	id, err := strconv.Atoi(context.Param("id"))
 	if err != nil || id <= 0 {
@@ -106,6 +79,7 @@ func getEventById(context *gin.Context) {
 		"result":  result,
 	})
 }
+
 func getEvents(context *gin.Context) {
 	allEvents, err := db.GetAllDbEvents()
 	if err != nil {
@@ -121,7 +95,6 @@ func getEvents(context *gin.Context) {
 }
 
 func deleteEventByIdFunction(context *gin.Context) {
-
 	id, err := strconv.Atoi(context.Param("id"))
 	if err != nil || id <= 0 {
 		context.JSON(http.StatusBadRequest, gin.H{
@@ -130,13 +103,11 @@ func deleteEventByIdFunction(context *gin.Context) {
 		return
 	}
 
-	errDatabase := db.DeleteEventById(id)
-	if errDatabase != nil {
+	_, userId := authedUser(context)
 
-		context.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Not Able to delete the Entry",
-		})
-
+	if err := db.DeleteEventById(id, userId); err != nil {
+		respondOwnershipError(context, err, "Not Able to delete the Entry")
+		return
 	}
 
 	context.JSON(http.StatusOK, gin.H{
@@ -152,24 +123,48 @@ func updateEvent(context *gin.Context) {
 		})
 		return
 	}
+
 	var event models.Event
-	errEvent := context.BindJSON(&event)
-	if errEvent != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{
+	if err := context.ShouldBindJSON(&event); err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
 			"message": "Unable to Update Information",
+			"error":   err.Error(),
 		})
 		return
 	}
 
-	errUpdate := db.UpdateEvent(id, event)
-	if errUpdate != nil {
-		context.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Data was not Updated",
-		})
+	_, userId := authedUser(context)
+
+	if err := db.UpdateEvent(id, event, userId); err != nil {
+		respondOwnershipError(context, err, "Data was not Updated")
 		return
 	}
+
 	context.JSON(http.StatusOK, gin.H{
 		"message": "Event Updated Successfully",
 		"Event":   event,
 	})
+}
+
+// respondOwnershipError maps the small set of domain errors that update
+// and delete can return into appropriate HTTP responses:
+//   - ErrEventNotFound → 404
+//   - ErrForbidden     → 403  (authenticated but not the owner)
+//   - anything else    → 500  (with the fallback message)
+func respondOwnershipError(context *gin.Context, err error, fallback string) {
+	switch {
+	case errors.Is(err, db.ErrEventNotFound):
+		context.JSON(http.StatusNotFound, gin.H{
+			"message": "Event not found",
+		})
+	case errors.Is(err, db.ErrForbidden):
+		context.JSON(http.StatusForbidden, gin.H{
+			"message": "You are not the owner of this event",
+		})
+	default:
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"message": fallback,
+			"error":   err.Error(),
+		})
+	}
 }
