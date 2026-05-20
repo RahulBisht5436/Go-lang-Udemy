@@ -9,6 +9,7 @@ import (
 
 	"example.com/rest-api/db"
 	"example.com/rest-api/models"
+	"example.com/rest-api/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +18,18 @@ func createEvent(context *gin.Context) {
 
 	//here we bind the entered Body into the event variable
 	err := context.BindJSON(&event)
-
+	rawtoken := context.GetHeader("Authorization")
+	token, tokenErr := utils.ExtractToken(rawtoken)
+	if tokenErr != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"message": "Invalid param passed",
+			"error":   tokenErr.Error(),
+		})
+		return
+	}
+	fmt.Println("=======================>>>>>>")
+	fmt.Println(token)
+	fmt.Println("=====================>>>>>>>>")
 	//if any error in the binding , Handle the error
 	if err != nil {
 		fmt.Println("error in parsing Data")

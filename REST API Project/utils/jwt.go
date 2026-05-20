@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -81,4 +83,32 @@ func GenerateToken(email string, userId int64) (string, error) {
 	}
 
 	return signed, nil
+}
+
+func ExtractToken(token string) (string, error) {
+	// Get Authorization header
+	// token := context.GetHeader("Authorization")
+
+	// Check if token exists
+	if token == "" {
+		return "", errors.New("Failed to Authenicate")
+	}
+
+	// Remove "Bearer " part
+	tokenString := strings.TrimPrefix(token, "Bearer ")
+
+	fmt.Println("Token:", tokenString)
+	return tokenString, nil
+}
+func ExtractUserInfo(tokenString string) (*jwt.Token, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+
+		return []byte("your-secret-key"), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
 }
