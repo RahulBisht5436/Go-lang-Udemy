@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 // in your .env file, read via os.Getenv) before this code ever runs in
 // production. Anyone who learns this string can forge tokens that the server
 // will happily accept as authentic.
-var jwtSecret = []byte("supersecret-change-me")
+var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 // GenerateToken builds a signed JSON Web Token (JWT) for an authenticated user
 // and returns it as a compact string the client can attach to future requests
@@ -100,15 +101,40 @@ func ExtractToken(token string) (string, error) {
 	fmt.Println("Token:", tokenString)
 	return tokenString, nil
 }
-func ExtractUserInfo(tokenString string) (*jwt.Token, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 
-		return []byte("your-secret-key"), nil
+// NEED TO UNDERSTAND THIS FILE :
+func ExtractUserInfo(tokenString string) (email string, userId int64, err error) {
+	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return jwtSecret, nil
 	})
-
 	if err != nil {
-		return nil, err
+		return "", 0, err
+	}
+	if !token.Valid {
+		return "", 0, errors.New("invalid token")
 	}
 
-	return token, nil
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", 0, errors.New("invalid claims type")
+	}
+
+	email, ok = claims["email"].(string)
+	if !ok {
+		return "", 0, errors.New("email claim missing or not a string")
+	}
+
+	// IMPORTANT: numbers in MapClaims come out as float64 because they
+	// were JSON-decoded. You stored userId as int64, but you must read
+	// it back as float64 first and convert.
+	uidFloat, ok := claims["userId"].(float64)
+	if !ok {
+		return "", 0, errors.New("userId claim missing or not a number")
+	}
+	userId = int64(uidFloat)
+
+	return email, userId, nil
 }

@@ -27,9 +27,15 @@ func createEvent(context *gin.Context) {
 		})
 		return
 	}
-	fmt.Println("=======================>>>>>>")
-	fmt.Println(token)
-	fmt.Println("=====================>>>>>>>>")
+	email, userId, errJWT := utils.ExtractUserInfo(token)
+	if errJWT != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"message": "Authentication Error",
+			"error":   errJWT.Error(),
+		})
+		return
+	}
+
 	//if any error in the binding , Handle the error
 	if err != nil {
 		fmt.Println("error in parsing Data")
@@ -68,6 +74,8 @@ func createEvent(context *gin.Context) {
 	context.JSON(http.StatusCreated, gin.H{
 		"Message": "Data Saved successFully",
 		"event":   event,
+		"email":   email,
+		"userId":  userId,
 	})
 }
 func getEventById(context *gin.Context) {
