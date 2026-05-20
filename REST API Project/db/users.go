@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"example.com/rest-api/models"
-	"golang.org/x/crypto/bcrypt"
+	"example.com/rest-api/utils"
 	"modernc.org/sqlite"
 )
 
@@ -19,9 +19,9 @@ var ErrUserEmailExists = errors.New("email already registered")
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
 func SaveUser(u *models.User) error {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
+	hashed, err := utils.HashPassword(u.Password)
 	if err != nil {
-		return fmt.Errorf("hash password: %w", err)
+		return err
 	}
 
 	stmt, err := DB.Prepare(`INSERT INTO users(email, password) VALUES (?, ?)`)
@@ -30,7 +30,7 @@ func SaveUser(u *models.User) error {
 	}
 	defer stmt.Close()
 
-	res, err := stmt.Exec(u.Email, string(hashed))
+	res, err := stmt.Exec(u.Email, hashed)
 	if err != nil {
 		// Translate the UNIQUE constraint violation into a domain error
 		// so callers can return HTTP 409 instead of a generic 500.
@@ -73,7 +73,7 @@ func AuthenticateUser(email, password string) (models.User, error) {
 		return models.User{}, fmt.Errorf("query user: %w", err)
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(password)); err != nil {
+	if !utils.CheckPasswordHash(password, hashedPass) {
 		return models.User{}, ErrInvalidCredentials
 	}
 
