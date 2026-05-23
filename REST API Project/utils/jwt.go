@@ -1,19 +1,25 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// jwtSecret is the symmetric key used to sign and later verify JWTs.
+// jwtSecret returns the symmetric key used to sign and verify JWTs.
 //
-// IMPORTANT: this MUST be moved into an environment variable (e.g. JWT_SECRET
-// in your .env file, read via os.Getenv) before this code ever runs in
-// production. Anyone who learns this string can forge tokens that the server
-// will happily accept as authentic.
-var jwtSecret = []byte("supersecret-change-me")
+// It is read lazily (not at package init) because main.go calls
+// godotenv.Load() AFTER this package is imported. If we initialised the
+// secret with `var jwtSecret = []byte(os.Getenv("JWT_SECRET"))`, the
+// variable would be captured BEFORE the .env file was parsed and would
+// silently be empty — every token would then be signed with an empty key.
+func jwtSecret() []byte {
+	return []byte(os.Getenv("JWT_SECRET"))
+}
 
 // GenerateToken builds a signed JSON Web Token (JWT) for an authenticated user
 // and returns it as a compact string the client can attach to future requests
@@ -75,10 +81,64 @@ func GenerateToken(email string, userId int64) (string, error) {
 	// using jwtSecret as the key, base64-encodes the result, appends it as the
 	// third segment, and returns the final dotted string. This is what gets
 	// shipped to the client.
-	signed, err := token.SignedString(jwtSecret)
+	signed, err := token.SignedString(jwtSecret())
 	if err != nil {
 		return "", fmt.Errorf("sign jwt: %w", err)
 	}
 
 	return signed, nil
+}
+
+// ExtractToken pulls the raw JWT string out of the value of an Authorization
+// header. It accepts either "Bearer <token>" (the convention) or just the
+// raw token, and returns an error if the header is empty.
+func ExtractToken(token string) (string, error) {
+	if token == "" {
+		return "", errors.New("missing Authorization header")
+	}
+	return strings.TrimPrefix(token, "Bearer "), nil
+}
+
+// ExtractUserInfo parses a JWT, verifies its signature against jwtSecret(),
+// confirms it's still valid (signature OK + not expired), and returns the
+// custom claims we baked into it in GenerateToken: the user's email and
+// numeric id. Any failure — bad signature, wrong algorithm, expired token,
+// missing/typo'd claims — is surfaced as an error so the caller can return
+// HTTP 401.
+func ExtractUserInfo(tokenString string) (email string, userId int64, err error) {
+	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		// Defence against the "alg=none" / algorithm-confusion family of
+		// attacks: pin the expected signing family explicitly.
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return jwtSecret(), nil
+	})
+	if err != nil {
+		return "", 0, err
+	}
+	if !token.Valid {
+		return "", 0, errors.New("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", 0, errors.New("invalid claims type")
+	}
+
+	email, ok = claims["email"].(string)
+	if !ok {
+		return "", 0, errors.New("email claim missing or not a string")
+	}
+
+	// IMPORTANT: numbers in MapClaims come out as float64 because they
+	// were JSON-decoded. You stored userId as int64, but you must read
+	// it back as float64 first and convert.
+	uidFloat, ok := claims["userId"].(float64)
+	if !ok {
+		return "", 0, errors.New("userId claim missing or not a number")
+	}
+	userId = int64(uidFloat)
+
+	return email, userId, nil
 }
