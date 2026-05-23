@@ -24,6 +24,7 @@ const (
 // stops; the handler is never called.
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+
 		raw := c.GetHeader("Authorization")
 		tokenString, err := ExtractToken(raw)
 		if err != nil {
@@ -48,3 +49,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+
+
+
